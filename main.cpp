@@ -8,7 +8,7 @@ int main(int argc, char *argv[])
     {
         return 1;
     }
-    std::cout << "Passed";
+    std::cout << "Passsed";
     
     
     return 0;
