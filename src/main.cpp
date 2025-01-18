@@ -4,11 +4,13 @@
 
 int main(int argc, char *argv[])
 {
-    if(!args::check(argc, argv))
+    uint16_t port = 0;
+    std::string origin;
+    if(!args::check(argc, argv, port, origin))
     {
         return 1;
     }
-    std::cout << "Passsed";
+    std::cout << "Port: " << port << "\nOrigin: " << origin;
     
     
     return 0;

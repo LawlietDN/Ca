@@ -2,74 +2,54 @@
 
 namespace args
 {
-    bool check(int argc, char* argv[])
+    bool isValidURL(std::string const& url)
     {
-        std::vector<std::string> argsVector = rawToVector(argc, argv);
-        if(argc < 2)
+    const std::regex url_regex(R"((https?)://[^\s/$.?#].[^\s]*)");
+    return std::regex_match(url, url_regex);
+}
+    bool check(int argc, char* argv[], uint16_t& port, std::string& origin)
+    {
+        boost::program_options::options_description description("Usage:"); 
+         description.add_options()
+        ("port, p", boost::program_options::value<uint16_t>()->required(), "The port number on which the caching proxy server will run(e.g.,12345).")
+        ("origin, p", boost::program_options::value<std::string>()->required(), "The URL of the server to which the requests will be forwarded.(e.g.,http://dummyjson.com).");
+        boost::program_options::variables_map variablesMap;
+
+    try
+    {
+
+        boost::program_options::store( boost::program_options::parse_command_line(argc, argv, description), variablesMap);
+        
+        if (!variablesMap.count("port"))
         {
-            std::cout << "No arguments provided.\n";
-            std::cout << "Usage:\nca --port [PORT] --origin [URL]\n";
+             /** Boost's notiy function validates all required arguments but doesn't enforce an order by default.
+             *   Hence why the program kept throwing an error indicating that --origin is required when no
+             *   arguments are passed, when in fact --port is required if we follow the required arguments order.*/
+            std::cerr << "Error: --port option is required.\n";
+            std::cout << description;   
             return false;
         }
-        // else if(argc < 4)
-        // {
-        //     std::cout << "Some arguments are missing\n";
-        //     std::cout << "Usage:\nca --port [PORT] --origin [URL]\n";
-        //     return false;
-        // }
- 
-        return isArgsValid(argsVector);
+        
+        boost::program_options::notify(variablesMap);
+        if(!isValidURL(origin))
+        {
+            std::cerr << "Error: Invalid URL\n";
+            std::cout << description;
+            return false;
+        }
+       
+
+    }
+    catch(boost::program_options::error const& e)
+    {
+        std::cerr << "Error: " << e.what() << "\n";
+        std::cout << description << "\n";
+        return false;
     }
     
-    bool isArgsValid(std::vector<std::string>& args)
-        {
-            for(int i = 0; i < args.size(); i++)
-            {
-                if(args[i] == "--port")
-                {
-                    if(!checkPort(args[i + 1]))
-                    {
-                        return false;
-                    }
-                }
-            }
-            return true;
-        }
-
-    std::vector<std::string> rawToVector(int argc, char* argv[])
-    {
-        std::vector<std::string> args;
-        for(int i = 0; i < argc; i++)
-        {
-            args.emplace_back(argv[i]);
-        }
-        return args;
+        port = variablesMap["port"].as<uint16_t>();
+        origin = variablesMap["origin"].as<std::string>();
+    return true;
     }
-
-    bool checkPort(std::string& portArg)
-    {
-        uint16_t port = 0;
-        try
-        {
-            int portNum = std::stoi(portArg);
-            if(portNum < 0 || portNum > 65535)
-            {
-                std::cout << "Port number is out of valid range.\nValid Range: 0-65535\n";
-                return false;
-            }
-            port = portNum;
-        }
-        catch(std::exception const& e)
-        {
-            std::cout << "Invalid port number.\n";
-            return false;
-        }
-            isPortActive(port);
-        return true;
-    }
-
-        bool isPortActive(uint16_t const& port)
-        {
-
-        }
+       
 };
