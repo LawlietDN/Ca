@@ -2,53 +2,64 @@
 
 namespace args
 {
-    bool isValidURL(std::string const& url)
+    bool isValidURL(std::string const& url, boost::program_options::options_description const& description)
     {
     const std::regex url_regex(R"((https?)://[^\s/$.?#].[^\s]*)");
-    return std::regex_match(url, url_regex);
-}
+     if(std::regex_match(url, url_regex)) return true;
+     std::cerr << "Invalid URL\n";
+     std::cerr << description;
+     return false;
+    }
+
+
+    bool checkPort(uint16_t const& port, boost::program_options::options_description const& description)
+    {
+        if(port < 1024 || port > 65535)
+        {
+            std::cerr << "Error: Port numebr must be between 1024 and 65535\n";
+            std::cout << description;
+            return false;
+        }
+        return true;
+    }
+
+
     bool check(int argc, char* argv[], uint16_t& port, std::string& origin)
     {
-        boost::program_options::options_description description("Usage:"); 
+        boost::program_options::options_description description("Usage"); 
          description.add_options()
-        ("port, p", boost::program_options::value<uint16_t>()->required(), "The port number on which the caching proxy server will run(e.g.,12345).")
-        ("origin, p", boost::program_options::value<std::string>()->required(), "The URL of the server to which the requests will be forwarded.(e.g.,http://dummyjson.com).");
+        ("port, p", boost::program_options::value<uint16_t>(&port)->required(), "The port number on which the caching proxy server will run(e.g., 12345).")
+        ("origin, p", boost::program_options::value<std::string>(&origin)->required(), "The URL of the server to which the requests will be forwarded.(e.g., http://dummyjson.com).");
         boost::program_options::variables_map variablesMap;
 
     try
     {
 
-        boost::program_options::store( boost::program_options::parse_command_line(argc, argv, description), variablesMap);
+        boost::program_options::store(boost::program_options::parse_command_line(argc, argv, description), variablesMap);
         
         if (!variablesMap.count("port"))
         {
              /** Boost's notiy function validates all required arguments but doesn't enforce an order by default.
              *   Hence why the program kept throwing an error indicating that --origin is required when no
-             *   arguments are passed, when in fact --port is required if we follow the required arguments order.*/
+             *   arguments are passed, when in fact --port is required if we follow the required arguments order.
+             *   Hence why we need to do a manual check for the port argument to avoid confusion*/
             std::cerr << "Error: --port option is required.\n";
-            std::cout << description;   
+            std::cerr << description;   
             return false;
         }
         
         boost::program_options::notify(variablesMap);
-        if(!isValidURL(origin))
-        {
-            std::cerr << "Error: Invalid URL\n";
-            std::cout << description;
-            return false;
-        }
-       
+      
 
     }
     catch(boost::program_options::error const& e)
     {
         std::cerr << "Error: " << e.what() << "\n";
-        std::cout << description << "\n";
+        std::cerr << description << "\n";
         return false;
     }
-    
-        port = variablesMap["port"].as<uint16_t>();
-        origin = variablesMap["origin"].as<std::string>();
+        if(!isValidURL(origin, description)) return false;
+        if(!checkPort(port, description)) return false;
     return true;
     }
        
