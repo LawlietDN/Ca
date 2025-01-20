@@ -8,7 +8,6 @@ int main(int argc, char *argv[])
     std::string address = "127.0.0.1";
     if(!args::check(argc, argv, port, origin)) return 1;
     
-    std::cout << "Port: " << port << "\nOrigin: " << origin << '\n';
     try
     {
         boost::asio::io_context io;
