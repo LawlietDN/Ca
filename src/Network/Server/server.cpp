@@ -11,9 +11,15 @@ void Server::accept()
                 std::cerr << "\nError occured while trying to accept connectiosn: " << e.message();
             }
             std::cout << "\nA connection has been accepted from: " << socket.remote_endpoint() << '\n';
-            std::make_shared<Session>(std::move(socket))->start();
+            std::make_shared<Session>(std::move(socket))->start(getOrigin());
             accept();
         }
     );
 }
+
+std::string Server::getOrigin()
+{
+    return _origin;
+}
+
 
