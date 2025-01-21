@@ -1,4 +1,4 @@
-#include "../Include/args.h"
+#include "args.h"
 
 namespace args
 {
@@ -27,10 +27,10 @@ namespace args
 
     bool check(int argc, char* argv[], uint16_t& port, std::string& origin)
     {
-        boost::program_options::options_description description("Usage"); 
+         boost::program_options::options_description description("Usage"); 
          description.add_options()
-        ("port, --p", boost::program_options::value<uint16_t>(&port)->required(), "The port number on which the caching proxy server will run(e.g., 12345).")
-        ("origin, p", boost::program_options::value<std::string>(&origin)->required(), "The URL of the server to which the requests will be forwarded.(e.g., http://dummyjson.com).")
+        ("port, --p", boost::program_options::value<uint16_t>(&port)->required(), "The port number on which the proxy server will run(e.g., 12345).")
+        ("origin, --o", boost::program_options::value<std::string>(&origin)->required(), "The URL of the server to which the requests will be forwarded.(e.g., https://example.com).")
         ("clear-cache", "To clear the cached responses from the server");
         boost::program_options::variables_map variablesMap;
 
