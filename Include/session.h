@@ -11,13 +11,16 @@ private:
     std::array<char, 1024> data;
     std::string incomingData;
     std::string path;
+    bool isValidRequests(size_t bytesRecieved);
 
     void read(std::string const& origin);
-    bool isValidRequests(size_t bytesRecieved);
+    void write(std::string const& message);
+
 
 public:
     explicit Session(boost::asio::ip::tcp::socket socket)
     :   _socket(std::move(socket)) {}
 
     void start(std::string const& origin);
+
 };
