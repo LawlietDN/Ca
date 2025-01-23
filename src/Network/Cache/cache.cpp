@@ -1,31 +1,32 @@
 #include "cache.h"
-
-void Cache::forward()
+bool Cache::start()
 {
-    std::cout << "Path: " << _path << "\nOrigin: " << _origin << '\n';
-    std::string requestMessage;
-    std::ostringstream requestMsg;
-    requestMsg << "GET " << _path << " HTTP/1.1\r\n";
-    requestMsg << "Host: " << _origin << "\r\n";
-    requestMsg << "User-Agent: MyCache/1.0\r\n"; 
-    requestMsg << "Accept: " << "*/*\r\n";
-    requestMsg << "Connection: close\r\n\r\n";
-    requestMessage = requestMsg.str();
+
+    trim();
+    connect();
+    
+}
+
+void Cache::write(std::string const& message)
+{
+
     auto self = shared_from_this();
-    std::cout << "Sending\n";
-    boost::asio::async_write(_socket, boost::asio::buffer(requestMessage),
+    boost::asio::async_write(_socket, boost::asio::buffer(message),
     [self](boost::system::error_code e, size_t transfereedBytes)
     {
         if(e)
         {
-            std::cerr << "Error while forwarding request: " << e.message();
+            std::cerr << "Error while writing datas: " << e.message();
+            return;
         }
+        
         self->readResponse();
     });
 }
 
 void Cache::connect()
 {
+
     auto endpoints = resolver.resolve(_origin, "80");
     auto self = shared_from_this();
     boost::asio::async_connect(_socket, endpoints,
@@ -36,26 +37,11 @@ void Cache::connect()
             std::cerr << "Error while connecting to the origin: " << e.message();
             return;
         }
-        self->forward();
+        
+        self->write(self->requestMessage());
     });
 }
-void Cache::start()
-{
-    if (_origin.find("https://"))
-    {
-        _origin = _origin.substr(8);
-    } else if (_origin.find("http://"))
-    {
-        _origin = _origin.substr(7);
-    }
-     size_t slashPos = _origin.find('/');
-    if (slashPos != std::string::npos)
-    {
-        _origin = _origin.substr(0, slashPos);
-    }
-    connect();
-    
-}
+
 
 void Cache::readResponse()  
 {
@@ -73,20 +59,55 @@ void Cache::readResponse()
             std::string httpVersion;
             int statusCode;
             std::string statusMessage;
-            responseStream >> httpVersion >> statusCode;
-            std::getline(responseStream, statusMessage);    
+            responseStream >> httpVersion >> statusCode >> statusMessage;
 
+            std::cout << "eher\n";
             if(statusCode == 200)
             {
-                std::string fullResponse((std::istreambuf_iterator<char>(&self->responseBuffer)),std::istreambuf_iterator<char>());
-        
-                std::cout << "Response: " << fullResponse << '\n';
+                std::string fullResponse;
+                while(std::getline(responseStream, fullResponse))
+                {
+                    std::cout << fullResponse << '\n';
+                }
             }
             else
             {
-                std::cout << "Status: " << self->_origin << self->_path << " " << statusCode << " " << statusMessage << '\n';
-                return;
+                std::cout << "Here\n";
+                std::ostringstream message;
+                message << "Something is wrong with the provided URL: "
+                    << self->_origin << self->_path << " " 
+                    << statusCode << " " << statusMessage << '\n';
+                    return;
             }
 
     });
+}
+
+void Cache::trim()
+{
+    if (_origin.find("https://") == 0)
+    {
+        _origin = _origin.substr(8);
+    }
+    else if (_origin.find("http://") == 0)
+    {
+        _origin = _origin.substr(7);
+    }
+    size_t slashPos = _origin.find('/');
+    if (slashPos != std::string::npos)
+    {
+        _origin = _origin.substr(0, slashPos);
+    }
+}
+
+std::string Cache::requestMessage()
+{
+    std::ostringstream requestMessage;
+    requestMessage << "GET " << _path << " HTTP/1.1\r\n"
+                   << "Host: " << _origin << "\r\n"
+                   << "User-Agent: MyCache/1.0\r\n"
+                   << "Accept: */*\r\n"
+                   << "Connection: close\r\n\r\n";
+
+    return requestMessage.str(); 
 }
