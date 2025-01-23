@@ -4,8 +4,8 @@ namespace args
 {
     bool isValidURL(std::string const& url, boost::program_options::options_description const& description)
     {
-     const std::regex url_regex(R"((https?)://[^\s/$.?#].[^\s]*)");
-     if(std::regex_match(url, url_regex)) return true;
+     const std::regex urlRregex(R"((https?)://[^\s/$.?#].[^\s]*)");
+     if(std::regex_match(url, urlRregex)) return true;
 
      std::cerr << "Invalid URL\n";
      std::cerr << description;
