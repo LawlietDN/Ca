@@ -6,9 +6,9 @@ void Session::read(std::string const& origin)
 
     auto self = shared_from_this();
     _socket.async_read_some(boost::asio::buffer(data),
-    [self, origin](boost::system::error_code e, size_t bytesRecieved)
+    [self, origin](boost::system::error_code const& e, size_t const& bytesRecieved)
     {
-        if(e)
+        if(e && e != boost::asio::error::eof)
         {
             std::cerr << "Error receiving data: " << e.message();
             return;
@@ -16,7 +16,7 @@ void Session::read(std::string const& origin)
         std::cout << "ddddk\n";
         if(!self->isValidRequests(bytesRecieved)) return;
         std::cout << "eee\n";
-        std::make_shared<Cache>(static_cast<boost::asio::io_context&>(self->_socket.get_executor().context()), origin, self->path)->start();
+        std::make_shared<Cache>(self->_socket, static_cast<boost::asio::io_context&>(self->_socket.get_executor().context()), origin, self->path)->start();
     });
 }
 bool Session::isValidRequests(size_t bytesRecieved)
@@ -35,9 +35,9 @@ void Session::write(std::string const& message)
 {
     auto self = shared_from_this();
     boost::asio::async_write(_socket, boost::asio::buffer(message),
-    [self](boost::system::error_code e, size_t transferredBytes)
+    [self](boost::system::error_code const& e, size_t const& transferredBytes)
     {
-        if(e)
+        if(e && e != boost::asio::error::eof)
         {
             std::cerr << "Error while writing: " << e.message();
             return;
