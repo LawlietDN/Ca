@@ -1,22 +1,19 @@
 #include "session.h"
-
+#include <nlohmann-json.hpp>
 void Session::read(std::string const& origin)
 {
-    std::cout << "ddddk\n";
-
     auto self = shared_from_this();
     _socket.async_read_some(boost::asio::buffer(data),
     [self, origin](boost::system::error_code const& e, size_t const& bytesRecieved)
     {
-        if(e && e != boost::asio::error::eof)
+        if(e)
         {
-            std::cerr << "Error receiving data: " << e.message();
+            std::cerr << "Error receiving data: " << e.message() << '\n';
             return;
         }
-        std::cout << "ddddk\n";
         if(!self->isValidRequests(bytesRecieved)) return;
-        std::cout << "eee\n";
         std::make_shared<Cache>(self->_socket, static_cast<boost::asio::io_context&>(self->_socket.get_executor().context()), origin, self->path)->start();
+        self->read(origin);
     });
 }
 bool Session::isValidRequests(size_t bytesRecieved)

@@ -1,8 +1,11 @@
 #include "cache.h"
-bool Cache::start()
+void Cache::start()
 {
-
     trim();
+    if(isCached())
+    {
+        return;
+    }
     connect();
     
 }
@@ -11,16 +14,15 @@ void Cache::write(std::string const& message, boost::asio::ip::tcp::socket& sock
 {
     
     auto self = shared_from_this();
-    auto messageCopy = std::make_shared<std::string>(message);
-    boost::asio::async_write(socket, boost::asio::buffer(*messageCopy),
-    [self, messageCopy](boost::system::error_code e, size_t transfereedBytes)
+    auto messagePtr = std::make_shared<std::string>(message);
+    boost::asio::async_write(socket, boost::asio::buffer(*messagePtr),
+    [self, messagePtr](boost::system::error_code e, size_t transfereedBytes)
     {
-        if(e && e != boost::asio::error::eof)
+        if(e && e != boost::asio::error::eof && e)
         {
             std::cerr << "Error while writing dats: " << e.message();
         }
-        std::cout << "aa"; 
-        
+
         self->readResponse();
     });
 }
@@ -38,7 +40,6 @@ void Cache::connect()
             std::cerr << "Error while connecting to the origin: " << e.message();
             return;
         }
-        
         self->write(self->requestMessage(), self->_socket);
     });
 }
@@ -47,40 +48,36 @@ void Cache::connect()
 void Cache::readResponse()  
 {
     auto self = shared_from_this();
-    
     boost::asio::async_read(_socket, responseBuffer,boost::asio::transfer_all(),
     [self](boost::system::error_code e, size_t transferredBytes)
     {
-        if (e && e != boost::asio::error::eof)
+        if (e && e != boost::asio::error::eof && e != boost::asio::error::bad_descriptor)
         {
-            std::cerr << "Error while reading response: " << e.message();
+            std::cerr << "Error while reading response: " << e.message() << '\n';
             return;
         }
-            std::istream responseStream(&(self->responseBuffer));
+            std::string fullResponse((std::istreambuf_iterator<char>(&self->responseBuffer)), std::istreambuf_iterator<char>());
+            std::istringstream responseStream(fullResponse);
+
             std::string httpVersion;
             int statusCode;
             std::string statusMessage;
             responseStream >> httpVersion >> statusCode >> statusMessage;
 
-            std::cout << "eher\n";
             if(statusCode == 200)
             {
-                std::string fullResponse;
-                while(std::getline(responseStream, fullResponse))
-                {
-                    std::cout << fullResponse << '\n';
-                }
+                nlohmann::json cachedResponse;
+                cachedResponse["Response"] = fullResponse.substr(0, fullResponse.size() - std::string("\n\nX-Cache: MISS").size()); 
+
+                std::string identifier = self->_origin + self->_path;
+                self->store(identifier, cachedResponse);
+                self->changeContentLength(fullResponse);
+                self->write(fullResponse, self->_clientSocket);
             }
             else
             {
-                std::cout << "Here\n";
-                std::ostringstream message;
-                message << "Something is wrong with the provided URL: "
-                    << self->_origin << self->_path << " "
-                    << statusCode << " " << statusMessage << '\n';
-                    std::cout << "ee\n";
-                    self->write(message.str(), self->_clientSocket);
-                    return;
+                self->write(fullResponse, self->_clientSocket);
+                return;
             }
 
     });
@@ -90,7 +87,7 @@ void Cache::trim()
 {
     if (_origin.find("https://") == 0)
     {
-        _origin = _origin.substr(8);
+        _origin = _origin.substr(8);    
     }
     else if (_origin.find("http://") == 0)
     {
@@ -112,4 +109,81 @@ std::string Cache::requestMessage()
                    << "Connection: close\r\n\r\n";
 
     return requestMessage.str(); 
+}
+void Cache::store(std::string const& identifier, nlohmann::json const& cachedResponse)
+{
+    try
+    {
+        nlohmann::json jsonFile;
+
+        if (std::filesystem::exists(fileName))
+        {
+            if (std::ifstream(fileName).peek() == std::ifstream::traits_type::eof())
+            {
+                std::ofstream(fileName) << "{}";
+            }
+            std::ifstream(fileName) >> jsonFile;
+        }
+
+        jsonFile[identifier] = cachedResponse["Response"].get<std::string>();
+        std::ofstream(fileName) << jsonFile.dump(4);
+    }
+    catch (std::exception const& e)
+    {
+        std::cerr << "Error in caching process: " << e.what() << std::endl;
+    }
+}
+
+bool Cache::isCached()
+{
+    std::string identifier = _origin + _path;
+    try
+    {
+        nlohmann::json jsonFile;
+        if(!std::filesystem::exists(fileName) || std::ifstream(fileName).peek() == std::ifstream::traits_type::eof()    )
+        {
+            return false;
+        }
+        
+        std::ifstream(fileName) >> jsonFile;    
+        if(jsonFile.contains(identifier))
+        {
+            std::string cachedResponse = jsonFile[identifier].get<std::string>();
+            size_t headerEnd = cachedResponse.find("\r\n\r\n");
+             cachedResponse += "\n\nX-Cache: HIT. ";
+            
+            write(cachedResponse, _clientSocket);
+            return true;
+        }
+
+    }
+    catch(std::exception const& e)
+    {
+        std::cerr << "An error occured while searching for cached responses: " << e.what();
+        return false;
+    }
+    return false;
+}
+
+std::string Cache::makeHeaders(size_t messageSize)
+{
+    std::ostringstream message;
+    message << "HTTP/1.1 200 OK\r\n";
+    message << "Content-Length: " << messageSize << "\r\n";
+    message << "Connection: close\r\n\r\n";
+    return message.str();
+
+}
+
+void Cache::changeContentLength(std::string& fullResponse)
+{
+    size_t headerEnd = fullResponse.find("\r\n\r\n");
+    std::string headers = fullResponse.substr(0, headerEnd);
+    size_t contentLengthPosition = headers.find("Content-Length:");
+    size_t startPosition = contentLengthPosition + std::string("Content-Length:").length();
+    size_t endPosition = headers.find("\r\n", startPosition);
+    size_t originalContentLength = std::stoul(headers.substr(startPosition, endPosition - startPosition));
+    size_t newContentLength = originalContentLength + std::string("\n\nX-Cache: MISS").size();
+    fullResponse.replace(contentLengthPosition + 16, endPosition - startPosition, std::to_string(newContentLength));
+    fullResponse += "\n\nX-Cache: MISS";
 }
