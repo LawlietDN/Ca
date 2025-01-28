@@ -30,8 +30,8 @@ namespace args
          boost::program_options::options_description description("Usage"); 
          description.add_options()
         ("port, --p", boost::program_options::value<uint16_t>(&port)->required(), "The port number on which the proxy server will run(e.g., 12345).")
-        ("origin, --o", boost::program_options::value<std::string>(&origin)->required(), "The URL of the server to which the requests will be forwarded.(e.g., https://example.com).")
-        ("clear-cache", "To clear the cached responses from the server");
+        ("origin, --o", boost::program_options::value<std::string>(&origin)->required(), "The URL of the server to which the requests will be forwarded.(e.g., http://example.com).")
+        ("clear-cache", " To clear all cached responses.");
         boost::program_options::variables_map variablesMap;
 
     try
