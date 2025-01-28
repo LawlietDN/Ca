@@ -38,11 +38,17 @@ namespace args
     {
 
         boost::program_options::store(boost::program_options::parse_command_line(argc, argv, description), variablesMap);
-        // if(variablesMap.count("clear-cache"))
-        // {
-        //     std::cout << "Clearing the cache JSON...\n"; //Logic being implemented soon.
-        //     return true;
-        // }
+        if(variablesMap.count("clear-cache"))
+        {
+            if(std::filesystem::exists(Cache::fileName))
+            {
+                std::filesystem::remove(Cache::fileName);
+                std::cout << "Cache has been cleared\n";
+                return false;
+            }
+            std::cout << "The cache is already empty, there is nothing to clear.\n";
+            return false;
+        }
         if (!variablesMap.count("port"))
         {
              /** Boost's notiy function validates all required arguments but doesn't enforce an order by default.
