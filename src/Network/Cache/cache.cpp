@@ -1,29 +1,34 @@
 #include "cache.h"
-void Cache::start()
+#include "session.h" 
+
+bool Cache::start()
 {
     trim();
     if(isCached())
     {
-        return;
+        return true;
     }
+
     connect();
     
+    return false;
 }
 
 void Cache::write(std::string const& message, boost::asio::ip::tcp::socket& socket)
 {
-    
     auto self = shared_from_this();
     auto messagePtr = std::make_shared<std::string>(message);
     boost::asio::async_write(socket, boost::asio::buffer(*messagePtr),
-    [self, messagePtr](boost::system::error_code e, size_t transfereedBytes)
+    [self, &socket, messagePtr](boost::system::error_code e, size_t)
     {
-        if(e && e != boost::asio::error::eof && e)
+        if(e && e != boost::asio::error::eof)
         {
-            std::cerr << "Error while writing dats: " << e.message();
+            return;
         }
-
-        self->readResponse();
+        if(&socket == &self->_socket)
+        {
+            self->readResponse();
+        }
     });
 }
 
@@ -37,10 +42,11 @@ void Cache::connect()
     {
         if(e && e != boost::asio::error::eof)
         {
-            std::cerr << "Error while connecting to the origin: " << e.message();
             return;
         }
+        std::cout << "A new request from " << self->_session->_socket.remote_endpoint() << " for " << self->_path  << " has been sucessfully forwarded to: " << self->_origin << '\n';
         self->write(self->requestMessage(), self->_socket);
+
     });
 }
 
@@ -49,36 +55,13 @@ void Cache::readResponse()
 {
     auto self = shared_from_this();
     boost::asio::async_read(_socket, responseBuffer,boost::asio::transfer_all(),
-    [self](boost::system::error_code e, size_t transferredBytes)
+    [self](boost::system::error_code e, size_t)
     {
-        if (e && e != boost::asio::error::eof && e != boost::asio::error::bad_descriptor)
+        if (e && e != boost::asio::error::eof)
         {
-            std::cerr << "Error while reading response: " << e.message() << '\n';
             return;
         }
-            std::string fullResponse((std::istreambuf_iterator<char>(&self->responseBuffer)), std::istreambuf_iterator<char>());
-            std::istringstream responseStream(fullResponse);
-
-            std::string httpVersion;
-            int statusCode;
-            std::string statusMessage;
-            responseStream >> httpVersion >> statusCode >> statusMessage;
-
-            if(statusCode == 200)
-            {
-                nlohmann::json cachedResponse;
-                cachedResponse["Response"] = fullResponse.substr(0, fullResponse.size() - std::string("\n\nX-Cache: MISS").size()); 
-
-                std::string identifier = self->_origin + self->_path;
-                self->store(identifier, cachedResponse);
-                self->changeContentLength(fullResponse);
-                self->write(fullResponse, self->_clientSocket);
-            }
-            else
-            {
-                self->write(fullResponse, self->_clientSocket);
-                return;
-            }
+            self->handleResponse(self->responseBuffer);
 
     });
 }
@@ -140,7 +123,7 @@ bool Cache::isCached()
     try
     {
         nlohmann::json jsonFile;
-        if(!std::filesystem::exists(fileName) || std::ifstream(fileName).peek() == std::ifstream::traits_type::eof()    )
+        if(!std::filesystem::exists(fileName) || std::ifstream(fileName).peek() == std::ifstream::traits_type::eof())
         {
             return false;
         }
@@ -150,9 +133,9 @@ bool Cache::isCached()
         {
             std::string cachedResponse = jsonFile[identifier].get<std::string>();
             size_t headerEnd = cachedResponse.find("\r\n\r\n");
-             cachedResponse += "\n\nX-Cache: HIT. ";
-            
-            write(cachedResponse, _clientSocket);
+            cachedResponse += "\n\nX-Cache: HIT. ";
+            std::cout << "Request has been found in cache.\nReturned the cached response.\n";
+            write(cachedResponse, _session->_socket);
             return true;
         }
 
@@ -182,8 +165,35 @@ void Cache::changeContentLength(std::string& fullResponse)
     size_t contentLengthPosition = headers.find("Content-Length:");
     size_t startPosition = contentLengthPosition + std::string("Content-Length:").length();
     size_t endPosition = headers.find("\r\n", startPosition);
+
     size_t originalContentLength = std::stoul(headers.substr(startPosition, endPosition - startPosition));
     size_t newContentLength = originalContentLength + std::string("\n\nX-Cache: MISS").size();
     fullResponse.replace(contentLengthPosition + 16, endPosition - startPosition, std::to_string(newContentLength));
     fullResponse += "\n\nX-Cache: MISS";
+}
+
+void Cache::handleResponse(boost::asio::streambuf& responseBuffer)
+{
+    std::string fullResponse((std::istreambuf_iterator<char>(&responseBuffer)), std::istreambuf_iterator<char>());
+    std::istringstream responseStream(fullResponse);
+
+    std::string httpVersion;
+    int statusCode;
+    std::string statusMessage;
+    responseStream >> httpVersion >> statusCode >> statusMessage;
+
+    if(statusCode == 200)
+    {
+        nlohmann::json cachedResponse;
+        cachedResponse["Response"] = fullResponse.substr(0, fullResponse.size() - std::string("\n\nX-Cache: MISS").size()); 
+
+        std::string identifier = _origin + _path;
+        store(identifier, cachedResponse);
+        changeContentLength(fullResponse);
+        write(fullResponse, _session->_socket);
+    }
+    else
+    {
+        write(fullResponse, _session->_socket);
+    }
 }
