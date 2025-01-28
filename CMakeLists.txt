@@ -13,13 +13,13 @@ include_directories(
 )
 
 add_executable(ca
-    src/main.cpp
 
     Include/cache.h
     Include/server.h
     Include/session.h
     Include/args.h
-
+    
+    src/main.cpp
     src/Network/Cache/cache.cpp
     src/Network/Server/server.cpp
     src/Network/Session/session.cpp
