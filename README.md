@@ -1,7 +1,7 @@
 
 # **Caching Proxy**
 
-A CLI tool for running a caching proxy server. It listens for incoming HTTP requests, forwards them to an origin server, caches the responses, and serves cached responses for repeated requests.
+A CLI tool for running a caching proxy server. It listens for incoming HTTP requests, forwards them to the specified origin server, caches the responses, and serves cached responses for repeated requests.
 
 # **Requirements**
 This project depends on the following libraries:
