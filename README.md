@@ -4,48 +4,93 @@
 A caching proxy server built with **C++** and **Boost.Asio**. It forwards HTTP requests to an origin server, caches the responses, and returns the cached responses for repeated requests.
 
 # **Requirements**
-You need to have the Boost library and the Nlohmann JSON header file alone installed.
-I'll be showing how to get these in Debian/Ubuntu, for other platforms, visit their respective documentations: https://github.com/nlohmann and https://www.boost.org/users/download/
+This project depends on the following libraries:
+
+Boost: For networking and command-line parsing.
+nlohmann JSON: For handling JSON-based caching.
+The instructions below are for Debian/Ubuntu. For other platforms, refer to their official documentation:
+[Boost](https://www.boost.org/users/download)
+[Nlohmann JSON](https://github.com/nlohmann/json)
 
 # **Installing The Libraries**
-Nlohmann JSON:
+**Nlohmann JSON**:
 ```shell
 sudo apt install nlohmann-json3-dev
 ```
-Boost:
+**Boost**:
 ```shell
 sudo apt install libboost-all-dev
 ```
+## **Building the Project**
 
-# **Building The Repository**
-```shell
-git clone https://github.com/LawlietDN/Ca
-cd Ca
-mkdir build
-cd build
-cmake ..
-make
-sudo mv ca /usr/bin
-```
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/LawlietDN/Ca
+   cd Ca
+   ```
+
+2. Create a build directory and compile:
+   ```bash
+   mkdir build
+   cd build
+   cmake ..
+   make
+   ```
+
+3. Move the compiled binary to a system-wide location (optional):
+   ```bash
+   sudo mv ca /usr/bin
+   ```
 After completing these steps, there isn't anything left except for testing the tool.
 
 # **Thinsg to know**
 The proxy doesn't handle redirects nor any SSL/TLS support for HTTPS protocols. It will work perfectly fine if ran with a origin that doesn't use HTTPS or doesn't redirect.
 
-# **Usage**
+## **Usage**
+
+Run the tool with the following command:
+
+```bash
 ca --port <port> --origin <origin>
-  --port:           The port number on which the proxy server will 
-                        run(e.g., 12345).
-  --origin:         The URL of the server to which the requests will be 
-                        forwarded.(e.g., https://example.com).
-  --clear-cache         To clear all cached responses.
-  
-# **The Project**
-It has several features:
-1. It forwards all incoming requests to the specified origin server. For example, if you run the tool with ca --port 12345 --origin http://httpbin.org the proxy will be running on http://localhost:12345 (127.0.0.1:12345) and will be forwarding any requests to  http://httpbin.org. If a requets to http://localhost:12345/get is made it'll forward that request to  http://httpbin.org/get cache the response then return it.
-3. It stores the server's responses locally in a cache.json file. If the same request is made again, the cached response is returned immediately.
-4. It adds X-Cache: HIT or X-Cache: MISS to indicate whether the response came from the cache or the origin server.
-5. CLI Commands:
-Start the proxy on a custom port.
-Specify the origin server.
-Clear the cache when needed.
+```
+
+### **Options**:
+
+- `--port`: The port number on which the proxy server will run (e.g., `12345`).
+- `--origin`: The URL of the origin server to forward requests to (e.g., `http://example.com`).
+- `--clear-cache`: Clears all cached responses.
+
+### **Examples**:
+
+1. **Start the proxy**:
+   ```bash
+   ca --port 3000 --origin http://httpbin.org
+   ```
+
+   This starts the proxy on `http://localhost:3000`. Requests to `http://localhost:3000/get` will be forwarded to `http://httpbin.org/get`.
+
+2. **Clear the cache**:
+   ```bash
+   ca --clear-cache
+   ```
+
+
+
+## **Features**
+
+1. **Request Forwarding**:  
+   Forwards all incoming requests to the specified origin server and returns the origin’s response to the client.
+
+2. **Caching**:  
+   Responses are stored locally in a `cache.json` file. If the same request is made again, the cached response is returned, significantly reducing latency.
+
+3. **Cache Headers**:  
+   Adds the following headers to the responses:
+   - `X-Cache: HIT` – Indicates the response came from the cache.
+   - `X-Cache: MISS` – Indicates the response was fetched from the origin server.
+
+4. **CLI Commands**:  
+   - Start the proxy server with a custom port and origin.
+   - Clear the cache using a simple command.
+
+
