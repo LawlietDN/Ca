@@ -44,7 +44,7 @@ sudo apt install libboost-all-dev
 After completing these steps, there isn't anything left except for testing the tool.
 
 # **Thinsg to know**
-The proxy doesn't handle redirects nor any SSL/TLS support for HTTPS protocols. It will work perfectly fine if ran with a origin that doesn't use HTTPS or doesn't redirect.
+The proxy does not handle SSL/TLS (HTTPS) or redirects. It only works with HTTP origins that do not redirect.
 
 ## **Usage**
 
