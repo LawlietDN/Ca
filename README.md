@@ -6,9 +6,11 @@ A CLI tool for running a caching proxy server. It listens for incoming HTTP requ
 # **Requirements**
 This project depends on the following libraries:
 
-Boost: For networking and command-line parsing.
-nlohmann JSON: For handling JSON-based caching.
+**Boost**: For networking and command-line parsing.
+**nlohmann JSON**: For handling JSON-based caching.
+
 The instructions below are for Debian/Ubuntu. For other platforms, refer to their official documentation:
+
 [Boost](https://www.boost.org/users/download)
 [Nlohmann JSON](https://github.com/nlohmann/json)
 
