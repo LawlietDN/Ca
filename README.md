@@ -76,7 +76,7 @@ ca --port <port> --origin <origin>
    ```bash
    ca --port 3000 --origin https://roadmap.sh/
    ```
-   This starts the proxy on `http://localhost:3000`. Requests to `http://localhost:3000/something` or `https://localhost:3000/something` will be forwarded to `http://httpbin.org/get` or `https://roadmap.sh/something`.
+   This starts the proxy on `http://localhost:3000`. Requests to `http://localhost:3000/something` will be forwarded to `http://httpbin.org/get` or `https://roadmap.sh/something`.
 
 3. **Clear the cache**:
    ```bash
@@ -88,7 +88,7 @@ ca --port <port> --origin <origin>
 ## **Features**
 1. **HTTPS Support**:
    The proxy now supports TLS and can forward requests to HTTPS origins.
-   Handles TLS handshakes properly.
+   It also handles TLS handshakes properly.
 1. **Request Forwarding**:  
    Forwards all incoming requests to the specified origin server and returns the origin’s response to the client.
 
