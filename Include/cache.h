@@ -14,7 +14,7 @@ private:
     std::shared_ptr<Session> _session;
     boost::asio::ip::tcp::socket _socket;
     boost::asio::ssl::context sslContext{boost::asio::ssl::context::tls_client};
-    boost::asio::ssl::stream<boost::asio::ip::tcp::socket> ssl;
+    boost::asio::ssl::stream<boost::asio::ip::tcp::socket> tls;
     boost::asio::ip::tcp::resolver resolver;
     boost::asio::streambuf responseBuffer;
     std::string _origin;
@@ -38,7 +38,7 @@ public:
     explicit Cache(std::shared_ptr<Session> session, boost::asio::io_context& io, std::string const& origin, std::string const& path)
     :   _session(session),
         _socket(io),
-        ssl(io,sslContext),
+        tls(io,sslContext),
         resolver(io),
         _origin(origin),
         _path(path)

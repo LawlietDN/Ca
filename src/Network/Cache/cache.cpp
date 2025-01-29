@@ -103,6 +103,7 @@ std::string Cache::requestMessage()
     std::ostringstream requestMessage;
     requestMessage << "GET " << _path << " HTTP/1.1\r\n"
                    << "Host: " << _origin << "\r\n"
+                   << "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36\r\n"
                    << "Accept: */*\r\n"
                    << "Connection: close\r\n\r\n";
 
@@ -208,6 +209,10 @@ void Cache::handleResponse(boost::asio::streambuf& responseBuffer)
         changeContentLength(fullResponse);
         _session->write(fullResponse);
     }
+    else if(statusCode == 301 || statusCode == 300)
+    {
+        std::cout << "Code: " << statusCode;
+    }
     else
     {
         _session->write(fullResponse);
@@ -218,8 +223,8 @@ void Cache::handleResponse(boost::asio::streambuf& responseBuffer)
 void Cache::sslConnect(boost::asio::ip::tcp::resolver::results_type const& endpoints)
 {
     auto self = shared_from_this();
-    SSL_set_tlsext_host_name(ssl.native_handle(),_origin.c_str());
-    boost::asio::async_connect(ssl.lowest_layer(), endpoints,
+    SSL_set_tlsext_host_name(tls.native_handle(),_origin.c_str());
+    boost::asio::async_connect(tls.lowest_layer(), endpoints,
     [self](boost::system::error_code const& e, boost::asio::ip::tcp::endpoint const& chosenEndpoint)
     {
         if(e)
@@ -227,17 +232,17 @@ void Cache::sslConnect(boost::asio::ip::tcp::resolver::results_type const& endpo
             std::cout << "Connection failed: " << e.message();
             return;
         }
-        self->ssl.async_handshake(boost::asio::ssl::stream_base::client,
+        self->tls.async_handshake(boost::asio::ssl::stream_base::client,
         [self, &chosenEndpoint](boost::system::error_code const& e)
         {
             if(e)
             {
-                std::cout << "SSL handshake for: " << chosenEndpoint.address() << " has failed\n";
+                std::cout << "TLS handshake for: " << chosenEndpoint.address() << " has failed\n";
                 return;
             }
         std::cout << self->port;
         std::cout << "A new request from " << self->_session->_socket.remote_endpoint() << " for " << self->_path  << " has been sucessfully forwarded to: " << self->_origin << '\n';
-        self->write(self->requestMessage(), self->ssl);
+        self->write(self->requestMessage(), self->tls);
         });
         
     });
