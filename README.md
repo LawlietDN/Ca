@@ -13,6 +13,7 @@ The instructions below are for Debian/Ubuntu. For other platforms, refer to thei
 
 [Boost](https://www.boost.org/users/download)
 [Nlohmann JSON](https://github.com/nlohmann/json)
+[OpenSSL](https://openssl-library.org/source/)
 
 # **Installing The Libraries**
 **Nlohmann JSON**:
