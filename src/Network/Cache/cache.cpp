@@ -13,8 +13,8 @@ bool Cache::start()
     
     return false;
 }
-
-void Cache::write(std::string const& message, boost::asio::ip::tcp::socket& socket)
+template<typename SocketType>
+void Cache::write(std::string const& message, SocketType& socket)
 {
     auto self = shared_from_this();
     auto messagePtr = std::make_shared<std::string>(message);
@@ -25,36 +25,49 @@ void Cache::write(std::string const& message, boost::asio::ip::tcp::socket& sock
         {
             return;
         }
-        if(&socket == &self->_socket)
-        {
-            self->readResponse();
-        }
+        
+        
+            self->readResponse(socket);
+        
     });
 }
 
 void Cache::connect()
 {
-
-    auto endpoints = resolver.resolve(_origin, "80");
     auto self = shared_from_this();
-    boost::asio::async_connect(_socket, endpoints,
-    [self](boost::system::error_code const& e, boost::asio::ip::tcp::endpoint const& endpoints)
+    resolver.async_resolve(_origin, port,
+    [self](boost::system::error_code const& e,  boost::asio::ip::tcp::resolver::results_type const& endpoints)
     {
-        if(e && e != boost::asio::error::eof)
+        if(e)
         {
+            std::cout << "Failed to resolve: " << e.message();
             return;
         }
-        std::cout << "A new request from " << self->_session->_socket.remote_endpoint() << " for " << self->_path  << " has been sucessfully forwarded to: " << self->_origin << '\n';
-        self->write(self->requestMessage(), self->_socket);
-
-    });
+        if(self->port == "443")
+        {
+            self->sslConnect(endpoints);
+            return;
+        }
+        boost::asio::async_connect(self->_socket, endpoints,
+        [self](boost::system::error_code const& e,  boost::asio::ip::tcp::endpoint const& chosenEndpoint)
+        {
+            if(e)
+            {
+                std::cout << "Failed to connect: " << e.message();
+                return;
+            }
+            std::cout << "A new request from " << self->_session->_socket.remote_endpoint() << " for " << self->_path  << " has been sucessfully forwarded to: " << self->_origin << '\n';
+            self->write(self->requestMessage(), self->_socket);
+        });
+    }); 
+   
 }
 
-
-void Cache::readResponse()  
+template<typename SocketType>
+void Cache::readResponse(SocketType& socket)  
 {
     auto self = shared_from_this();
-    boost::asio::async_read(_socket, responseBuffer,boost::asio::transfer_all(),
+    boost::asio::async_read(socket, responseBuffer,boost::asio::transfer_all(),
     [self](boost::system::error_code e, size_t)
     {
         if (e && e != boost::asio::error::eof)
@@ -70,6 +83,8 @@ void Cache::trim()
 {
     if (_origin.find("https://") == 0)
     {
+        port = "443";
+
         _origin = _origin.substr(8);    
     }
     else if (_origin.find("http://") == 0)
@@ -114,6 +129,7 @@ void Cache::store(std::string const& identifier, nlohmann::json const& cachedRes
     catch (std::exception const& e)
     {
         std::cerr << "Error in caching process: " << e.what() << std::endl;
+        return;
     }
 }
 
@@ -135,7 +151,7 @@ bool Cache::isCached()
             size_t headerEnd = cachedResponse.find("\r\n\r\n");
             cachedResponse += "\n\nX-Cache: HIT. ";
             std::cout << "Request has been found in cache.\nReturned the cached response.\n";
-            write(cachedResponse, _session->_socket);
+            _session->write(cachedResponse);
             return true;
         }
 
@@ -190,10 +206,39 @@ void Cache::handleResponse(boost::asio::streambuf& responseBuffer)
         std::string identifier = _origin + _path;
         store(identifier, cachedResponse);
         changeContentLength(fullResponse);
-        write(fullResponse, _session->_socket);
+        _session->write(fullResponse);
     }
     else
     {
-        write(fullResponse, _session->_socket);
+        _session->write(fullResponse);
     }
+}
+
+
+void Cache::sslConnect(boost::asio::ip::tcp::resolver::results_type const& endpoints)
+{
+    auto self = shared_from_this();
+    SSL_set_tlsext_host_name(ssl.native_handle(),_origin.c_str());
+    boost::asio::async_connect(ssl.lowest_layer(), endpoints,
+    [self](boost::system::error_code const& e, boost::asio::ip::tcp::endpoint const& chosenEndpoint)
+    {
+        if(e)
+        {
+            std::cout << "Connection failed: " << e.message();
+            return;
+        }
+        self->ssl.async_handshake(boost::asio::ssl::stream_base::client,
+        [self, &chosenEndpoint](boost::system::error_code const& e)
+        {
+            if(e)
+            {
+                std::cout << "SSL handshake for: " << chosenEndpoint.address() << " has failed\n";
+                return;
+            }
+        std::cout << self->port;
+        std::cout << "A new request from " << self->_session->_socket.remote_endpoint() << " for " << self->_path  << " has been sucessfully forwarded to: " << self->_origin << '\n';
+        self->write(self->requestMessage(), self->ssl);
+        });
+        
+    });
 }
