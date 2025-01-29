@@ -1,14 +1,14 @@
 
 # **Caching Proxy**
 
-A CLI tool for running a caching proxy server. It listens for incoming HTTP requests, forwards them to the specified origin server, caches the responses, and serves cached responses for repeated requests.
+A CLI tool for running a caching proxy server that supports both HTTP and HTTPS. The proxy listens for incoming requests, forwards them to the specified origin server, caches the responses, and serves cached responses for repeated requests.
 
 # **Requirements**
 This project depends on the following libraries:
 
 **Boost**: For networking and command-line parsing.
 **nlohmann JSON**: For handling JSON-based caching.
-
+**OpenSSL: For handling HTTPS requests.**
 The instructions below are for Debian/Ubuntu. For other platforms, refer to their official documentation:
 
 [Boost](https://www.boost.org/users/download)
@@ -16,12 +16,16 @@ The instructions below are for Debian/Ubuntu. For other platforms, refer to thei
 
 # **Installing The Libraries**
 **Nlohmann JSON**:
-```shell
+```bash
 sudo apt install nlohmann-json3-dev
 ```
 **Boost**:
-```shell
+```bash
 sudo apt install libboost-all-dev
+```
+**OpenSSL**:
+```bash
+sudo apt install libssl-dev
 ```
 ## **Building the Project**
 
@@ -46,12 +50,11 @@ sudo apt install libboost-all-dev
 After completing these steps, there isn't anything left except for testing the tool.
 
 # **Thinsg to know**
-The proxy does not handle SSL/TLS (HTTPS) or redirects. It only works with HTTP origins that do not redirect.
+The proxy does not handle redirects yet. It only works with HTTP/HTTPS origins that do not redirect.
 
 ## **Usage**
 
 Run the tool with the following command:
-
 ```bash
 ca --port <port> --origin <origin>
 ```
@@ -65,13 +68,17 @@ ca --port <port> --origin <origin>
 ### **Examples**:
 
 1. **Start the proxy**:
+   **For HTTP**:
    ```bash
    ca --port 3000 --origin http://httpbin.org
    ```
+   **For HTTPS**:
+   ```bash
+   ca --port 3000 --origin https://roadmap.sh/
+   ```
+   This starts the proxy on `http://localhost:3000`. Requests to `http://localhost:3000/something` or `https://localhost:3000/something` will be forwarded to `http://httpbin.org/get` or `https://roadmap.sh/something`.
 
-   This starts the proxy on `http://localhost:3000`. Requests to `http://localhost:3000/get` will be forwarded to `http://httpbin.org/get`.
-
-2. **Clear the cache**:
+3. **Clear the cache**:
    ```bash
    ca --clear-cache
    ```
@@ -79,7 +86,9 @@ ca --port <port> --origin <origin>
 
 
 ## **Features**
-
+1. **HTTPS Support**:
+   The proxy now supports TLS and can forward requests to HTTPS origins.
+   Handles TLS handshakes properly.
 1. **Request Forwarding**:  
    Forwards all incoming requests to the specified origin server and returns the origin’s response to the client.
 
