@@ -50,7 +50,7 @@ sudo apt install libssl-dev
    ```
 After completing these steps, there isn't anything left except for testing the tool.
 
-# **Thinsg to know**
+# **What to know**
 The proxy does not handle redirects yet. It only works with HTTP/HTTPS origins that do not redirect.
 
 ## **Usage**
